@@ -5,7 +5,6 @@ import os
 import sys
 import termcolor
 import bitstring
-import hexdump
 import macaddress
 import datetime
 import re
@@ -36,7 +35,7 @@ class Extractor:
             return False
         
         #
-        # Extracting the Ethernet frames.
+        # Extracts the Ethernet frames.
         #
         print(termcolor.colored("[+]", "yellow"), "Extracting frames")
 
@@ -45,9 +44,9 @@ class Extractor:
             return False
         
         #
-        # Inserts the frames into the SQL db.
+        # Adds the frames in the SQL db.
         #
-        print(termcolor.colored("[+]", "yellow"), "Adding frames to the database")
+        print(termcolor.colored("[+]", "yellow"), f"Adding frames to {self.sql_db.path_to_db}")
         
         if not self.insert_frames_into_db():
             return False
@@ -189,12 +188,7 @@ notes:
                 # Reads the msg (if any).
                 #
                 if (bit_read_from_frame / 8) < int(self.current_frame.fields["frame_size"]["value"], 16):
-                    self.current_frame.msg = bit_stream.read((int(self.current_frame.fields["frame_size"]["value"], 16) * 8) - bit_read_from_frame)
-
-                    #
-                    # Creates a "hexdump" style representation of the msg.
-                    #
-                    self.current_frame.msg = hexdump.hexdump(self.current_frame.msg.bytes)
+                    bit_stream.read((int(self.current_frame.fields["frame_size"]["value"], 16) * 8) - bit_read_from_frame)
 
                 #
                 # Performs some modifications to the values to make them more human-readable.
@@ -334,7 +328,7 @@ notes:
         """
 
         #
-        # Reads from cmd line.
+        # Reads from the cmd line.
         # 
         if self.cmd_line_args.short != None:
             self.current_frame.test_name = self.cmd_line_args.short[0]

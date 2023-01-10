@@ -62,5 +62,3 @@ class Frame:
 
         self.test_name = ""
         self.test_execution_date = ""
-
-        self.msg = ""

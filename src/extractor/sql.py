@@ -8,10 +8,16 @@ class SQL:
         Facilitates interactions with the SQL database.
     """
 
-    TABLE_NAME = "frames"
-    TABLE_STRUCT = """
-        test_name TEXT, 
-        test_execution_date TEXT,
+    TESTS_TABLE_NAME = "tests"
+    TESTS_TABLE_STRUCT = """
+        id INTEGER,
+        name TEXT, 
+        execution_date TEXT,
+        PRIMARY KEY("id" AUTOINCREMENT)"""
+
+    FRAMES_TABLE_NAME = "frames"
+    FRAMES_TABLE_STRUCT = """
+        test_id INTEGER,
 
         frame_date TEXT,
         bench_3 TEXT,
@@ -51,9 +57,7 @@ class SQL:
 
         packet_date TEXT,
 
-        msg_type TEXT,
-
-        msg TEXT"""
+        msg_type TEXT"""
 
     def __init__(self, path_to_db: str="../../db.sql"):
         self.path_to_db = path_to_db
@@ -68,7 +72,7 @@ class SQL:
 
     def open_db(self) -> bool:
         """
-            Opens the DB and creates a table.
+            Opens the DB and creates required tables.
 
             Return - true - in case of success,
                    - false - in case of error.
@@ -81,9 +85,10 @@ class SQL:
             self.cursor = self.conn.cursor()
 
             #
-            # Creates a table.
+            # Creates the "tests" and "frames" tables.
             #
-            if not self.execute_query(f"""CREATE table IF NOT EXISTS {SQL.TABLE_NAME} ({SQL.TABLE_STRUCT})"""):
+            if not self.execute_query(f"""CREATE table IF NOT EXISTS {SQL.FRAMES_TABLE_NAME} ({SQL.FRAMES_TABLE_STRUCT})""") or \
+                not self.execute_query(f"""CREATE table IF NOT EXISTS {SQL.TESTS_TABLE_NAME} ({SQL.TESTS_TABLE_STRUCT})"""):
                 raise
 
         except:
@@ -110,15 +115,43 @@ class SQL:
 
     def insert_frame(self, frame: frame.Frame) -> bool:
         """
-            Inserts a frame into the "frames" table.
+            Creates a test if needed and inserts the frame into the "frames" table.
 
             Return - true - in case of success,
                    - false - in case of error.
         """
 
-        return self.execute_query(f"""INSERT INTO {self.TABLE_NAME} ({SQL.TABLE_STRUCT.replace("TEXT", "")}) VALUES (
-            "{frame.test_name}",
-            "{frame.test_execution_date}",
+        #
+        # Checks if the test exists
+        #
+        if not self.execute_query(f"""SELECT id FROM {self.TESTS_TABLE_NAME} WHERE name = "{frame.test_name}" AND execution_date = "{frame.test_execution_date}\""""):
+            return False
+
+        #
+        # If not, creates it
+        #
+        test_id = self.cursor.fetchone()
+
+        if test_id == None:
+            if not self.execute_query(f"""INSERT INTO {self.TESTS_TABLE_NAME} (name, execution_date) VALUES ("{frame.test_name}", "{frame.test_execution_date}")"""):
+                print(f"""INSERT INTO {self.TESTS_TABLE_NAME} (name, execution_date) VALUES ("{frame.test_name}", "{frame.test_execution_date}")""")
+                return False
+
+            #
+            # Gets the new id
+            #
+            if not self.execute_query(f"""SELECT id FROM {self.TESTS_TABLE_NAME} WHERE name = "{frame.test_name}" AND execution_date = "{frame.test_execution_date}\""""):
+                return False
+            
+            test_id = self.cursor.fetchone()
+
+        if test_id == None:
+            return False
+
+        test_id = test_id[0]
+
+        return self.execute_query(f"""INSERT INTO {self.FRAMES_TABLE_NAME} ({SQL.FRAMES_TABLE_STRUCT.replace("TEXT", "").replace("INTEGER", "")}) VALUES (
+            "{test_id}",
 
             "{frame.fields["frame_date"]["value"]}",
             "{frame.fields["bench_3"]["value"]}",
@@ -157,6 +190,4 @@ class SQL:
             "{frame.fields["field_35"]["value"]}",
             "{frame.packet_date}",
 
-            "{frame.message_type}",
-
-            "{bytes(str(frame.msg), "utf-8").hex()}\")""")
+            "{frame.message_type}")""")
